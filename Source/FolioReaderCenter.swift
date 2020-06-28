@@ -179,8 +179,10 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         // Configure navigation bar and layout
         automaticallyAdjustsScrollViewInsets = false
         extendedLayoutIncludesOpaqueBars = true
-        configureNavBar()
-
+        self.configureNavBar()
+        self.configureBackButton()
+        self.configureBottomContentActions()
+        
         // Page indicator view
         if (self.readerConfig.hidePageIndicator == false) {
             let frame = self.frameForPageIndicatorView()
@@ -201,11 +203,10 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
     override open func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
 
-        configureNavBar()
-
+        self.configureNavBar()
         // Update pages
-        pagesForCurrentPage(currentPage)
-        pageIndicatorView?.reloadView(updateShadow: true)
+        self.pagesForCurrentPage(currentPage)
+        self.pageIndicatorView?.reloadView(updateShadow: true)
     }
 
     override open func viewDidLayoutSubviews() {
@@ -249,6 +250,58 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         return CGRect(x: self.pageWidth + 10, y: scrubberY, width: 40, height: (self.pageHeight - 100))
     }
 
+    func configureBackButton(){
+        let bounds = CGRect(x: 10, y: 30, width: 40, height: 40)
+        let backIcon = UIImage(readerImageNamed: "back-icon")
+        let fab = FloatingActionButton()
+        fab.buttonColor = .white
+        fab.frame = bounds
+        fab.setImage(backIcon, for: .normal)
+        fab.addTarget(self, action: #selector(closeReader(_:)), for: .touchUpInside)
+        self.view.addSubview(fab)
+    }
+    
+    func configureBottomContentActions(){
+        self.configureFontAction()
+        self.configureListChapterAction()
+        self.configureHighlights()
+    }
+    
+    func configureFontAction(){
+        let bounds = CGRect(x: self.screenBounds.size.width - 70, y: self.screenBounds.size.height - 170, width: 35, height: 35)
+        let backIcon = UIImage(readerImageNamed: "icon-font-action")
+        let fab = FloatingActionButton()
+        fab.buttonColor = self.readerConfig.tintColor
+        fab.frame = bounds
+        fab.setImage(backIcon, for: .normal)
+        fab.addTarget(self, action: #selector(self.presentFontFullScreen), for: .touchUpInside)
+        self.view.addSubview(fab)
+    }
+    
+    func configureListChapterAction(){
+        let bounds = CGRect(x: self.screenBounds.size.width - 120, y: self.screenBounds.size.height - 170, width: 35, height: 35)
+        let backIcon = UIImage(readerImageNamed: "icon-chapter-action")
+        let fab = FloatingActionButton()
+        fab.buttonColor = self.readerConfig.tintColor
+        fab.frame = bounds
+        fab.setImage(backIcon, for: .normal)
+        fab.addTarget(self, action:#selector(self.chapterTapped), for: .touchUpInside)
+        self.view.addSubview(fab)
+    }
+    
+    func configureHighlights(){
+        let bounds = CGRect(x: self.screenBounds.size.width - 170, y: self.screenBounds.size.height - 170, width: 35, height: 35)
+        let backIcon = UIImage(readerImageNamed: "icon-note-action")
+        let fab = FloatingActionButton()
+        fab.buttonColor = self.readerConfig.tintColor
+        fab.frame = bounds
+        fab.setImage(backIcon, for: .normal)
+        let isChapter = false
+        fab.addTarget(self, action: #selector(self.HighlightTapped), for: .touchUpInside)
+        self.view.addSubview(fab)
+    }
+
+    
     func configureNavBar() {
         let navBackground = folioReader.isNight(self.readerConfig.nightModeNavBackground, self.readerConfig.daysModeNavBackground)
         let tintColor = readerConfig.tintColor
@@ -268,7 +321,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         let space = 70 as CGFloat
 
         let menu = UIBarButtonItem(image: closeIcon, style: .plain, target: self, action:#selector(closeReader(_:)))
-        let toc = UIBarButtonItem(image: tocIcon, style: .plain, target: self, action:#selector(presentChapterList(_:)))
+        let toc = UIBarButtonItem(image: tocIcon, style: .plain, target: self, action:#selector(self.presentChapterList))
 
         navigationItem.leftBarButtonItems = [menu, toc]
 
@@ -1318,6 +1371,17 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         scrollScrubber?.scrollViewDidEndScrollingAnimation(scrollView)
     }
 
+    // MARK: Bottom Actions
+    @objc func chapterTapped(){
+        self.folioReader.currentMenuIndex = 0
+        self.presentChapterList()
+    }
+    
+    @objc func HighlightTapped(){
+        self.folioReader.currentMenuIndex = 1
+        self.presentChapterList()
+    }
+    
     // MARK: NavigationBar Actions
 
     @objc func closeReader(_ sender: UIBarButtonItem) {
@@ -1328,7 +1392,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
     /**
      Present chapter list
      */
-    @objc func presentChapterList(_ sender: UIBarButtonItem) {
+    @objc func presentChapterList() {
         folioReader.saveReaderState()
 
         let chapter = FolioReaderChapterList(folioReader: folioReader, readerConfig: readerConfig, book: book, delegate: self)
@@ -1364,7 +1428,20 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         menu.transitioningDelegate = animator
         self.present(menu, animated: true, completion: nil)
     }
-
+    
+    /**
+        Present fonts and settings Menu full screen
+     */
+    @objc func presentFontFullScreen(){
+        self.folioReader.saveReaderState()
+        self.hideBars()
+        let vc = FolioReaderFontsSettings(folioReader: self.folioReader, readerConfig: self.readerConfig)
+        let nav = UINavigationController(rootViewController: vc)
+        nav.modalPresentationStyle = .formSheet
+        nav.setNavigationBarHidden(true, animated: true)
+        self.present(nav, animated: true, completion: nil)
+    }
+    
     /**
      Present audio player menu
      */
